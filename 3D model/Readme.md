@@ -15,6 +15,10 @@ A 3D-printable mount that holds an [Elgato Stream Deck Neo](https://www.elgato.c
 | `*.stl` | Print-ready mesh export|
 | `*.3mf` | Print-ready export|
 
+## Also on Printables
+
+This model is also published on Printables: [Elgato StreamDeck Neo 10" Mount](https://www.printables.com/model/1843343-elgato-streamdeck-neo-10-mount/files)
+
 ## Printing notes
 
 - No supports required.
