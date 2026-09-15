@@ -5,6 +5,9 @@ CPU/RAM/disk, container/VM status, network throughput, and HTTP health
 checks for whatever services you run — running headless inside its own
 unprivileged LXC container.
 
+<img width="4284" height="5712" alt="IMG_4703" src="https://github.com/user-attachments/assets/6a25c998-356d-4bc9-a18a-96207755e021" />
+
+
 ```mermaid
 flowchart LR
     deck["Elgato Stream Deck\n(any model)"]
@@ -64,6 +67,13 @@ keys your device has:
 | Health | green/red reachability tile for each URL you configure |
 
 Tiles are color-coded green/amber/red based on configurable thresholds.
+
+<img width="4032" height="3024" alt="IMG_4699" src="https://github.com/user-attachments/assets/347c2d94-a1a8-47d9-b667-8ffbe86c0208" />
+
+<img width="4032" height="3024" alt="IMG_4695" src="https://github.com/user-attachments/assets/b9326a8b-82d5-4eda-9bcb-13df7efe3e21" />
+
+<img width="4032" height="3024" alt="IMG_4696" src="https://github.com/user-attachments/assets/6ca961a4-8806-4e35-be68-0a233bd8ad16" />
+
 
 ## Prerequisites
 
