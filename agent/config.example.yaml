@@ -20,6 +20,14 @@ refresh_seconds: 5
 # Stream Deck backlight brightness, 0-100.
 brightness: 75
 
+# Dim the backlight after this many seconds with no key presses (0 disables
+# dimming and keeps it at `brightness` always). This is mostly about not
+# having a static image lit 24/7 (screen wear) rather than real power
+# savings -- these devices draw ~1-2W either way. Any key press instantly
+# restores full brightness.
+idle_dim_seconds: 300
+idle_brightness: 0
+
 # Adds a Speedtest page: press any key on it to run a real internet
 # speed test (download/upload/ping) from the agent's container, which
 # shares the host's uplink. Uses real bandwidth each time it runs, so

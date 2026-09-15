@@ -142,6 +142,8 @@ want to fold this into existing infra-as-code instead:
 | `proxmox.verify_ssl` | Set `true` only if the API has a trusted (non-self-signed) cert |
 | `refresh_seconds` | Poll interval for host/guest/network stats |
 | `brightness` | Stream Deck backlight, 0-100 |
+| `idle_dim_seconds` | Dim the backlight after this many seconds of no key presses (`0` disables dimming). Any key press wakes it instantly. Mainly about avoiding a static image burned in 24/7 rather than real power savings — these devices only draw ~1-2W regardless. |
+| `idle_brightness` | Backlight level while idle (used only if `idle_dim_seconds` > 0) |
 | `thresholds.warn` / `bad` | Usage % at which a tile turns amber / red |
 | `enable_speedtest` | Whether to show the Speedtest page (it uses real bandwidth each time it runs) |
 | `health_check_interval_seconds` | How often health checks run (kept separate from `refresh_seconds` since HTTP checks are slower) |

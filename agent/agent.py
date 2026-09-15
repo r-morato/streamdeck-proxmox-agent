@@ -356,6 +356,8 @@ class Agent:
         self.prev_key = None
         self.next_key = None
         self.tile_size = (72, 72)
+        self.last_activity = time.time()
+        self._applied_brightness = None
 
     def layout_for(self, deck):
         rows, cols = deck.key_layout()
@@ -401,6 +403,18 @@ class Agent:
             self.redraw_event.set()
             self.stop_event.wait(interval)
 
+    def apply_idle_brightness(self, deck):
+        idle_after = self.cfg.get("idle_dim_seconds", 0)
+        active_brightness = self.cfg.get("brightness", 75)
+        if idle_after and idle_after > 0:
+            idle_for = time.time() - self.last_activity
+            target = self.cfg.get("idle_brightness", 0) if idle_for > idle_after else active_brightness
+        else:
+            target = active_brightness
+        if target != self._applied_brightness:
+            deck.set_brightness(target)
+            self._applied_brightness = target
+
     def draw_page(self, deck):
         page_size = max(len(self.tile_keys), 1)
         pages = self.compute_pages(page_size)
@@ -417,6 +431,7 @@ class Agent:
     def on_key(self, deck, key, pressed):
         if not pressed:
             return
+        self.last_activity = time.time()
         page_size = max(len(self.tile_keys), 1)
         pages = self.compute_pages(page_size)
         n = len(pages)
@@ -470,7 +485,8 @@ class Agent:
             try:
                 deck.open()
                 deck.reset()
-                deck.set_brightness(self.cfg.get("brightness", 75))
+                self._applied_brightness = None  # force a re-apply against this (possibly new) deck object
+                self.last_activity = time.time()
                 self.prev_key, self.next_key, self.tile_keys = self.layout_for(deck)
                 self.tile_size = deck.key_image_format()["size"]
                 deck.set_key_callback(self.on_key)
@@ -479,6 +495,7 @@ class Agent:
                     deck.deck_type(), deck.key_count(), *self.tile_size,
                 )
                 while not self.stop_event.is_set() and deck.is_open():
+                    self.apply_idle_brightness(deck)
                     self.draw_page(deck)
                     self.redraw_event.wait(timeout=3)
                     self.redraw_event.clear()
