@@ -1,4 +1,4 @@
-# streamdeck-proxmox-agent
+# Streamdeck Proxmox Agent
 
 Turn an Elgato Stream Deck into a live status panel for a Proxmox VE host -
 CPU/RAM/disk, container/VM status, network throughput, and HTTP health
