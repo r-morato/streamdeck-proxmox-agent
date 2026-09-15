@@ -17,6 +17,13 @@ proxmox:
 # How often (seconds) to poll Proxmox for host/guest/network stats.
 refresh_seconds: 5
 
+# If no Stream Deck is found for this many seconds, exit so systemd's
+# Restart=always can bring up a clean process. Needed because hidapi/libusb
+# can get stuck and never re-detect the device again after a physical
+# unplug/replug within the same process. Set to 0 to disable and retry
+# forever instead.
+device_not_found_restart_seconds: 120
+
 # Stream Deck backlight brightness, 0-100.
 brightness: 75
 

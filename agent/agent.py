@@ -475,12 +475,24 @@ class Agent:
 
     def run(self):
         threading.Thread(target=self.poller_loop, daemon=True).start()
+        not_found_timeout = self.cfg.get("device_not_found_restart_seconds", 120)
+        not_found_since = None
         while not self.stop_event.is_set():
             decks = DeviceManager().enumerate()
             if not decks:
                 log.warning("no Stream Deck found, retrying in 10s")
+                if not_found_since is None:
+                    not_found_since = time.time()
+                elif not_found_timeout and time.time() - not_found_since > not_found_timeout:
+                    # hidapi/libusb can get stuck after a physical unplug and never
+                    # re-detect the device again within this process (a known
+                    # library limitation), so exit and let systemd's Restart=always
+                    # bring up a clean process that re-enumerates from scratch.
+                    log.error("no Stream Deck found for over %ds, exiting for a clean restart", not_found_timeout)
+                    raise SystemExit(1)
                 self.stop_event.wait(10)
                 continue
+            not_found_since = None
             deck = decks[0]
             try:
                 deck.open()
