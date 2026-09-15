@@ -5,18 +5,22 @@ CPU/RAM/disk, container/VM status, network throughput, and HTTP health
 checks for whatever services you run — running headless inside its own
 unprivileged LXC container.
 
-```
-┌─────────────────────────────┐        USB        ┌──────────────────┐
-│ Proxmox VE host              │ ◄────────────────► │ Elgato Stream    │
-│                               │   passthrough      │ Deck (any model) │
-│  ┌─────────────────────────┐ │                     └──────────────────┘
-│  │ unprivileged LXC          │ │
-│  │  streamdeck-agent.service │ │  HTTPS (read-only    ┌──────────────┐
-│  │  (this repo)  ───────────┼─┼─ API token) ─────────►│ Proxmox API  │
-│  │        │                  │ │                       └──────────────┘
-│  │        └── HTTP GET ──────┼─┼──► your other LXCs/VMs (health checks)
-│  └───────────────────────────┘ │
-└─────────────────────────────┘
+```mermaid
+flowchart LR
+    deck["Elgato Stream Deck\n(any model)"]
+
+    subgraph host["Proxmox VE host"]
+        subgraph lxc["unprivileged LXC"]
+            agent["streamdeck-agent.service\n(this repo)"]
+        end
+    end
+
+    api["Proxmox API"]
+    services["your other LXCs / VMs\n(health checks)"]
+
+    host <-->|"USB passthrough"| deck
+    agent -->|"HTTPS, read-only API token"| api
+    agent -->|"HTTP GET"| services
 ```
 
 The agent never has write access to anything: it authenticates to the
