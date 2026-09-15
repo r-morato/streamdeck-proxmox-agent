@@ -1,0 +1,15 @@
+[Unit]
+Description=Stream Deck Neo homelab agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=streamdeck
+Group=streamdeck
+ExecStart=/opt/streamdeck-agent/venv/bin/python3 /opt/streamdeck-agent/agent.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

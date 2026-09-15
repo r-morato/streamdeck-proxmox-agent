@@ -1,0 +1,13 @@
+# Real config with secrets -- never commit this. Only config.example.yaml is tracked.
+config.yaml
+**/config.yaml
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Editor/OS cruft
+.DS_Store
+*.swp

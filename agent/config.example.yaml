@@ -1,0 +1,46 @@
+# Copy this file to /etc/streamdeck-agent/config.yaml and fill in your own
+# values. config.yaml is gitignored -- never commit it, it holds a secret.
+
+proxmox:
+  # Proxmox node's management IP or hostname (NOT the VM/LXC's own IP)
+  host: 192.168.1.10
+  port: 8006
+  # Name of the Proxmox node as shown by `pvesh get /nodes` (often just `hostname`)
+  node: pve
+  # Created by scripts/01-host-setup.sh: a PVEAuditor (read-only) API token
+  token_id: "streamdeck@pve!agent"
+  token_secret: "REPLACE_ME"
+  # Proxmox's default self-signed certificate won't verify; set true if you
+  # installed a trusted cert.
+  verify_ssl: false
+
+# How often (seconds) to poll Proxmox for host/guest/network stats.
+refresh_seconds: 5
+
+# Stream Deck backlight brightness, 0-100.
+brightness: 75
+
+# Adds a Speedtest page: press any key on it to run a real internet
+# speed test (download/upload/ping) from the agent's container, which
+# shares the host's uplink. Uses real bandwidth each time it runs, so
+# set to false if you'd rather not have that one tap away.
+enable_speedtest: true
+
+# Optional: CPU/RAM/disk usage percentages at which a tile turns amber/red.
+thresholds:
+  warn: 75
+  bad: 90
+
+# How often (seconds) to run the HTTP health checks below.
+health_check_interval_seconds: 20
+# Per-request timeout (seconds) for each health check.
+health_check_timeout_seconds: 3
+
+# Any HTTP(S) service you want a green/red status tile for. Add or remove
+# as many entries as you like -- pages are generated automatically to fit
+# however many keys your Stream Deck has.
+health_checks:
+  - name: Example App
+    url: http://192.168.1.20:8080
+  - name: Another Service
+    url: https://192.168.1.21:9443
