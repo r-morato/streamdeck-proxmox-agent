@@ -1,8 +1,8 @@
 # streamdeck-proxmox-agent
 
-Turn an Elgato Stream Deck into a live status panel for a Proxmox VE host —
+Turn an Elgato Stream Deck into a live status panel for a Proxmox VE host -
 CPU/RAM/disk, container/VM status, network throughput, and HTTP health
-checks for whatever services you run — running headless inside its own
+checks for whatever services you run - running headless inside its own
 unprivileged LXC container.
 
 <img width="4284" height="5712" alt="IMG_4703" src="https://github.com/user-attachments/assets/6a25c998-356d-4bc9-a18a-96207755e021" />
@@ -35,14 +35,14 @@ for health checks.
 
 - Keeps a third-party USB-facing Python process off the Proxmox host itself.
 - The container only needs the USB device passed through to it and a
-  read-only API token — if it's ever compromised, it can't change anything
+  read-only API token - if it's ever compromised, it can't change anything
   on the cluster.
 - Runs as a dedicated non-root user inside the container, not root.
 
 ## Supported hardware
 
 Any Stream Deck model exposing a rectangular button grid — Mini, Original,
-MK.2, XL, Neo — works, because the agent reads the grid size and key-image
+MK.2, XL, Neo - works, because the agent reads the grid size and key-image
 resolution from the connected device at startup instead of assuming one
 model. On most models the bottom-left and bottom-right keys of the grid
 become **prev/next** page navigation, leaving every other key as a data
@@ -121,7 +121,7 @@ pct exec 110 -- journalctl -u streamdeck-agent -f
 ```
 
 The Stream Deck should light up with the Host page within a few seconds.
-Page through Guests → Network → Health with next/prev — the bottom-right
+Page through Guests → Network → Health with next/prev - the bottom-right
 and bottom-left grid keys on most models, or the dedicated tactile buttons
 below the screen on a Neo.
 
