@@ -68,6 +68,9 @@ keys your device has:
 
 Tiles are color-coded green/amber/red based on configurable thresholds.
 
+<img width="4032" height="3024" alt="IMG_4697" src="https://github.com/user-attachments/assets/4556121c-1172-4a9f-9b8a-7486e391ffb7" />
+
+
 <img width="4032" height="3024" alt="IMG_4699" src="https://github.com/user-attachments/assets/347c2d94-a1a8-47d9-b667-8ffbe86c0208" />
 
 <img width="4032" height="3024" alt="IMG_4695" src="https://github.com/user-attachments/assets/b9326a8b-82d5-4eda-9bcb-13df7efe3e21" />
