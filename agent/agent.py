@@ -3,9 +3,11 @@
 
 Works with any Stream Deck model exposing a rectangular key grid (Neo, Mini,
 Original, XL, ...). The grid size is read from the connected device at
-runtime -- nothing about key count or layout is hardcoded. The bottom-left
-and bottom-right keys of the grid are used as PREV / NEXT; every other key
-is a data tile for whichever page is currently selected.
+runtime -- nothing about key count or layout is hardcoded. On a model with
+dedicated tactile buttons below the grid (e.g. the Neo) those are used for
+PREV / NEXT, leaving every key in the grid free as a data tile. Otherwise the
+bottom-left and bottom-right keys of the grid itself are used as PREV / NEXT,
+and every other key is a data tile for whichever page is currently selected.
 """
 import logging
 import os
@@ -158,10 +160,15 @@ class State:
                 self.health[name] = ok
 
 
-def human_bytes_rate(bps):
+def human_bytes_rate_parts(bps):
     if bps >= 1024 * 1024:
-        return f"{bps / 1024 / 1024:.1f} MB/s"
-    return f"{bps / 1024:.0f} KB/s"
+        return f"{bps / 1024 / 1024:.1f}", "MB/s"
+    return f"{bps / 1024:.0f}", "KB/s"
+
+
+def human_bytes_rate(bps):
+    num, unit = human_bytes_rate_parts(bps)
+    return f"{num} {unit}"
 
 
 def human_uptime(seconds):
@@ -193,10 +200,14 @@ def render_tile(size, title, value, subtitle="", bg=COLOR_BG):
     img = Image.new("RGB", (w, h), bg)
     draw = ImageDraw.Draw(img)
     pad = max(w // 16, 4)
-    draw.text((pad, pad), title, font=font(max(int(h * 0.135), 9), bold=True), fill=COLOR_TEXT)
-    draw.text((pad, int(h * 0.35)), value, font=font(max(int(h * 0.21), 11), bold=True), fill=COLOR_TEXT)
+    max_width = w - 2 * pad
+    title_font = font(max(int(h * 0.135), 9), bold=True)
+    value_font = font(max(int(h * 0.21), 11), bold=True)
+    draw.text((pad, pad), fit_or_scroll(draw, title_font, title, max_width), font=title_font, fill=COLOR_TEXT)
+    draw.text((pad, int(h * 0.35)), fit_or_scroll(draw, value_font, value, max_width), font=value_font, fill=COLOR_TEXT)
     if subtitle:
-        draw.text((pad, int(h * 0.77)), subtitle, font=font(max(int(h * 0.125), 9)), fill=COLOR_TEXT)
+        subtitle_font = font(max(int(h * 0.125), 9))
+        draw.text((pad, int(h * 0.77)), fit_or_scroll(draw, subtitle_font, subtitle, max_width), font=subtitle_font, fill=COLOR_TEXT)
     return img
 
 
@@ -213,6 +224,68 @@ def render_nav(size, label):
 
 def render_blank(size):
     return Image.new("RGB", size, COLOR_BG)
+
+
+def render_strip(size, left_text, right_text):
+    w, h = size
+    img = Image.new("RGB", (w, h), COLOR_BG)
+    draw = ImageDraw.Draw(img)
+    f = font(max(int(h * 0.45), 12), bold=True)
+    pad = max(w // 40, 6)
+    left_bbox = draw.textbbox((0, 0), left_text, font=f)
+    left_w, left_h = left_bbox[2] - left_bbox[0], left_bbox[3] - left_bbox[1]
+    draw.text((pad, (h - left_h) / 2), left_text, font=f, fill=COLOR_TEXT)
+    if right_text:
+        right_bbox = draw.textbbox((0, 0), right_text, font=f)
+        right_w, right_h = right_bbox[2] - right_bbox[0], right_bbox[3] - right_bbox[1]
+        right_x = w - pad - right_w
+        gap = max(w // 20, 12)
+        # skip the right-side text entirely rather than let it overlap a long left_text
+        if right_x - (pad + left_w) >= gap:
+            draw.text((right_x, (h - right_h) / 2), right_text, font=f, fill=COLOR_TEXT)
+    return img
+
+
+SCROLL_TICK_SECONDS = 0.4
+
+
+def fit_or_scroll(draw, f, text, max_width, step_seconds=SCROLL_TICK_SECONDS, pause_ticks=2):
+    """Return `text` unchanged if it fits in `max_width` pixels with font `f`.
+    Otherwise sweep a window forward from the start of `text` to the point
+    where the remaining tail fits entirely, pause briefly at each end, then
+    jump straight back to the start -- so it always reads cleanly from the
+    first characters (e.g. "RETES") through to the last (e.g. "ETEST"),
+    never showing a wrapped blend of the tail and head together.
+    Measures actual rendered pixel width rather than character count, since a
+    bold proportional font makes some short strings overflow and some long
+    ones fit. step_seconds should match the redraw tick rate so it advances
+    one character per redraw instead of jumping several at once."""
+    if not text or draw.textlength(text, font=f) <= max_width:
+        return text
+
+    def window_from(start):
+        window = ""
+        for ch in text[start:]:
+            candidate = window + ch
+            if draw.textlength(candidate, font=f) > max_width:
+                break
+            window = candidate
+        return window
+
+    max_start = next(
+        (i for i in range(len(text)) if draw.textlength(text[i:], font=f) <= max_width),
+        len(text) - 1,
+    )
+    span = max_start + 1
+    total = span + pause_ticks * 2
+    tick = int(time.time() / step_seconds) % total
+    if tick < pause_ticks:
+        start = 0
+    elif tick < pause_ticks + span:
+        start = tick - pause_ticks
+    else:
+        start = max_start
+    return window_from(start)
 
 
 class Page:
@@ -269,7 +342,7 @@ class GuestsPage(Page):
             bg = COLOR_OK if running else COLOR_BAD
             cpu_pct = g.get("cpu", 0) * 100
             title = f"{g['vmid']} {g.get('kind', '')}"
-            value = g.get("name", "")[:10]
+            value = g.get("name", "")
             subtitle = f"UP {cpu_pct:.0f}%" if running else "DOWN"
             tiles.append(render_tile(size, title, value, subtitle, bg=bg))
         return tiles
@@ -281,12 +354,14 @@ class NetworkPage(Page):
     def tiles(self, state, size, pct_color):
         with state.lock:
             net = dict(state.net_rate)
+        in_num, in_unit = human_bytes_rate_parts(net["in_bps"])
+        out_num, out_unit = human_bytes_rate_parts(net["out_bps"])
         tiles = [
-            render_tile(size, "TOTAL IN", human_bytes_rate(net["in_bps"])),
-            render_tile(size, "TOTAL OUT", human_bytes_rate(net["out_bps"])),
+            render_tile(size, "TOTAL IN", in_num, in_unit),
+            render_tile(size, "TOTAL OUT", out_num, out_unit),
         ]
         for name, bps in net["top"]:
-            tiles.append(render_tile(size, "TOP TALKER", name[:10], human_bytes_rate(bps)))
+            tiles.append(render_tile(size, "TOP TALKER", name, human_bytes_rate(bps)))
         return tiles
 
 
@@ -307,15 +382,15 @@ class SpeedtestPage(Page):
         else:
             button = render_tile(size, "SPEEDTEST", "PRESS", "any key", bg=COLOR_NAV)
 
-        def fmt(key, unit):
+        def fmt(key):
             v = sp.get(key)
-            return f"{v:.0f} {unit}" if isinstance(v, (int, float)) else "--"
+            return f"{v:.0f}" if isinstance(v, (int, float)) else "--"
 
         return [
             button,
-            render_tile(size, "DOWNLOAD", fmt("download_mbps", "Mbps")),
-            render_tile(size, "UPLOAD", fmt("upload_mbps", "Mbps")),
-            render_tile(size, "PING", fmt("ping_ms", "ms")),
+            render_tile(size, "DOWNLOAD", fmt("download_mbps"), "Mbps"),
+            render_tile(size, "UPLOAD", fmt("upload_mbps"), "Mbps"),
+            render_tile(size, "PING", fmt("ping_ms"), "ms"),
         ]
 
     def handle_key(self, agent, idx):
@@ -338,7 +413,7 @@ class HealthPage(Page):
                 bg, label = COLOR_BG, "..."
             else:
                 bg, label = (COLOR_OK, "UP") if ok else (COLOR_BAD, "DOWN")
-            tiles.append(render_tile(size, name[:10], label, bg=bg))
+            tiles.append(render_tile(size, name, label, bg=bg))
         return tiles
 
 
@@ -356,12 +431,21 @@ class Agent:
         self.prev_key = None
         self.next_key = None
         self.tile_size = (72, 72)
+        self.screen_size = (0, 0)
         self.last_activity = time.time()
         self._applied_brightness = None
 
     def layout_for(self, deck):
         rows, cols = deck.key_layout()
         key_count = rows * cols
+        if deck.touch_key_count() >= 2:
+            # dedicated tactile buttons below the LCD grid (e.g. Stream Deck Neo) --
+            # use those for paging instead of spending two tiles on on-screen arrows.
+            # They report through the same key callback, indexed right after the grid.
+            prev_key = key_count
+            next_key = key_count + 1
+            tile_keys = list(range(key_count))
+            return prev_key, next_key, tile_keys
         if key_count >= 3:
             next_key = key_count - 1
             prev_key = key_count - cols
@@ -424,9 +508,17 @@ class Agent:
         for i, key in enumerate(self.tile_keys):
             img = tiles[i] if i < len(tiles) else render_blank(self.tile_size)
             deck.set_key_image(key, PILHelper.to_native_format(deck, img))
-        if self.prev_key is not None:
+        # a prev/next key beyond key_count() is a tactile button with no display
+        # (see layout_for) -- nothing to draw there, it's a physical button
+        if self.prev_key is not None and self.prev_key < deck.key_count():
             deck.set_key_image(self.prev_key, PILHelper.to_native_format(deck, render_nav(self.tile_size, "<")))
-        deck.set_key_image(self.next_key, PILHelper.to_native_format(deck, render_nav(self.tile_size, ">")))
+        if self.next_key < deck.key_count():
+            deck.set_key_image(self.next_key, PILHelper.to_native_format(deck, render_nav(self.tile_size, ">")))
+        if self.screen_size[0] and self.screen_size[1]:
+            clock = time.strftime("%H:%M:%S")
+            strip = render_strip(self.screen_size, page.name, clock)
+            deck.set_screen_image(PILHelper.to_native_screen_format(deck, strip))
+        return page
 
     def on_key(self, deck, key, pressed):
         if not pressed:
@@ -501,6 +593,7 @@ class Agent:
                 self.last_activity = time.time()
                 self.prev_key, self.next_key, self.tile_keys = self.layout_for(deck)
                 self.tile_size = deck.key_image_format()["size"]
+                self.screen_size = deck.screen_image_format()["size"]
                 deck.set_key_callback(self.on_key)
                 log.info(
                     "connected to %s (%d keys, %dx%d tile size)",
@@ -508,8 +601,11 @@ class Agent:
                 )
                 while not self.stop_event.is_set() and deck.is_open():
                     self.apply_idle_brightness(deck)
-                    self.draw_page(deck)
-                    self.redraw_event.wait(timeout=3)
+                    page = self.draw_page(deck)
+                    # tick faster on pages that can show scrolling names so the
+                    # crawl is fluid; a plain 3s tick elsewhere keeps CPU/USB idle
+                    has_scroll = isinstance(page, (GuestsPage, HealthPage, NetworkPage, SpeedtestPage))
+                    self.redraw_event.wait(timeout=SCROLL_TICK_SECONDS if has_scroll else 3)
                     self.redraw_event.clear()
             except Exception as e:
                 log.error("deck error: %s", e)
