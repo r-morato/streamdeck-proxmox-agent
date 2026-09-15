@@ -41,8 +41,12 @@ for health checks.
 Any Stream Deck model exposing a rectangular button grid — Mini, Original,
 MK.2, XL, Neo — works, because the agent reads the grid size and key-image
 resolution from the connected device at startup instead of assuming one
-model. The bottom-left and bottom-right keys of whatever grid you have
-become **prev/next** page navigation; every other key is a data tile.
+model. On most models the bottom-left and bottom-right keys of the grid
+become **prev/next** page navigation, leaving every other key as a data
+tile. On a model with dedicated tactile buttons below the grid (currently
+just the Neo), those physical buttons are used for prev/next instead, so
+every key in the grid is free as a data tile; the Neo's small LCD strip
+also shows the current page name and a live clock.
 (Devices with a screen strip/dial instead of a full grid, like Stream Deck
 Plus, aren't targeted by this project.)
 
@@ -104,8 +108,9 @@ pct exec 110 -- journalctl -u streamdeck-agent -f
 ```
 
 The Stream Deck should light up with the Host page within a few seconds.
-Press the bottom-right key to page through Guests → Network → Health, and
-bottom-left to go back.
+Page through Guests → Network → Health with next/prev — the bottom-right
+and bottom-left grid keys on most models, or the dedicated tactile buttons
+below the screen on a Neo.
 
 ## Doing it by hand
 
@@ -141,6 +146,7 @@ want to fold this into existing infra-as-code instead:
 | `proxmox.token_id` / `token_secret` | The read-only API token from setup |
 | `proxmox.verify_ssl` | Set `true` only if the API has a trusted (non-self-signed) cert |
 | `refresh_seconds` | Poll interval for host/guest/network stats |
+| `device_not_found_restart_seconds` | If no Stream Deck is found for this long, exit so systemd's `Restart=always` brings up a clean process (works around hidapi/libusb getting stuck and never re-detecting the device after a physical unplug/replug). `0` disables this and retries forever instead |
 | `brightness` | Stream Deck backlight, 0-100 |
 | `idle_dim_seconds` | Dim the backlight after this many seconds of no key presses (`0` disables dimming). Any key press wakes it instantly. Mainly about avoiding a static image burned in 24/7 rather than real power savings — these devices only draw ~1-2W regardless. |
 | `idle_brightness` | Backlight level while idle (used only if `idle_dim_seconds` > 0) |
@@ -175,7 +181,10 @@ generic helpers already used by the built-in pages.
   check `lsusb` on the *host* shows the device, then `pct exec <CTID> --
   ls -la /dev/bus/usb/*/*` shows it inside the container with `rw-rw-rw-`
   permissions. If not, re-run the udev rule step and unplug/replug the
-  device.
+  device. If it stays undetected past `device_not_found_restart_seconds`,
+  the agent exits on its own and systemd restarts it with a clean process —
+  check `journalctl -u streamdeck-agent` for the "exiting for a clean
+  restart" log line.
 - **Blank/black keys**: check `journalctl -u streamdeck-agent` for
   exceptions — usually a bad `config.yaml` (missing field, bad token).
 - **All tiles show `no data` / health checks all `DOWN`**: the container
