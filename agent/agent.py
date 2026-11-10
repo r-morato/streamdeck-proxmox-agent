@@ -104,6 +104,7 @@ class State:
         self.cfg = cfg
         self.lock = threading.Lock()
         self.host_status = None
+        self.host_status_ts = 0.0
         self.guests = []
         self.net_rate = {"in_bps": 0, "out_bps": 0, "top": []}
         self.health = {h["name"]: None for h in cfg.get("health_checks", [])}
@@ -136,6 +137,7 @@ class State:
         with self.lock:
             if status:
                 self.host_status = status
+                self.host_status_ts = now
             self.guests = guests
             self.net_rate = {"in_bps": total_in, "out_bps": total_out, "top": deltas[:4]}
             self._prev_net = cur
@@ -306,8 +308,14 @@ class HostPage(Page):
     def tiles(self, state, size, pct_color):
         with state.lock:
             s = state.host_status
+            age = time.time() - state.host_status_ts
         if not s:
             return [render_tile(size, "HOST", "no data", bg=COLOR_BAD)]
+        # don't keep showing the last good numbers once the API stops answering;
+        # a few missed polls are tolerated so one blip doesn't flash red
+        stale_after = max(3 * state.cfg.get("refresh_seconds", 5), 30)
+        if age > stale_after:
+            return [render_tile(size, "HOST", "no data", f"{human_uptime(age)} ago", bg=COLOR_BAD)]
         mem = s["memory"]
         mem_pct = 100 * mem["used"] / mem["total"]
         rootfs = s["rootfs"]
